@@ -59,6 +59,7 @@ set(
     "ONNX Runtime root"
 )
 
+# Allow environment variable as a fallback.
 if(
     PHOTON_ONNXRUNTIME_ROOT STREQUAL ""
     AND DEFINED ENV{ONNXRUNTIME_ROOT}
@@ -82,59 +83,147 @@ if(
     )
 endif()
 
-find_path(
-    PHOTON_ORT_INCLUDE_DIR
-    NAMES onnxruntime_cxx_api.h
-    PATHS
-        "${PHOTON_ONNXRUNTIME_ROOT}/include"
-    NO_DEFAULT_PATH
-)
+# ------------------------------------------------------------
+# Locate ONNX Runtime headers
+# ------------------------------------------------------------
 
-find_library(
-    PHOTON_ORT_LIBRARY
-    NAMES onnxruntime
-    PATHS
-        "${PHOTON_ONNXRUNTIME_ROOT}/lib"
-    NO_DEFAULT_PATH
-)
+if(PHOTON_ENABLE_ONNXRUNTIME)
 
-find_file(
-    PHOTON_ORT_DLL
-    NAMES onnxruntime.dll
-    PATHS
-        "${PHOTON_ONNXRUNTIME_ROOT}/lib"
-        "${PHOTON_ONNXRUNTIME_ROOT}/bin"
-    NO_DEFAULT_PATH
-)
+    find_path(
+        PHOTON_ORT_INCLUDE_DIR
+        NAMES
+            onnxruntime_cxx_api.h
+        PATHS
+            "${PHOTON_ONNXRUNTIME_ROOT}/include"
+        NO_DEFAULT_PATH
+    )
 
-if(
-    PHOTON_ENABLE_ONNXRUNTIME
-    AND (
+    # --------------------------------------------------------
+    # Locate ONNX Runtime library
+    #
+    # Windows:
+    #   onnxruntime.lib
+    #
+    # Linux:
+    #   libonnxruntime.so
+    # --------------------------------------------------------
+
+    find_library(
+        PHOTON_ORT_LIBRARY
+        NAMES
+            onnxruntime
+        PATHS
+            "${PHOTON_ONNXRUNTIME_ROOT}/lib"
+        NO_DEFAULT_PATH
+    )
+
+    # --------------------------------------------------------
+    # Windows DLL
+    # --------------------------------------------------------
+
+    if(WIN32)
+
+        find_file(
+            PHOTON_ORT_DLL
+            NAMES
+                onnxruntime.dll
+            PATHS
+                "${PHOTON_ONNXRUNTIME_ROOT}/lib"
+                "${PHOTON_ONNXRUNTIME_ROOT}/bin"
+            NO_DEFAULT_PATH
+        )
+
+    else()
+
+        # Linux/macOS do not use a Windows DLL.
+        set(
+            PHOTON_ORT_DLL
+            ""
+        )
+
+    endif()
+
+    # --------------------------------------------------------
+    # Validate ONNX Runtime
+    # --------------------------------------------------------
+
+    if(
         NOT PHOTON_ORT_INCLUDE_DIR
         OR NOT PHOTON_ORT_LIBRARY
-        OR NOT PHOTON_ORT_DLL
+        OR (WIN32 AND NOT PHOTON_ORT_DLL)
     )
-)
+        message(
+            STATUS
+            "PHOTON_ONNXRUNTIME_ROOT = ${PHOTON_ONNXRUNTIME_ROOT}"
+        )
+
+        message(
+            STATUS
+            "PHOTON_ORT_INCLUDE_DIR = ${PHOTON_ORT_INCLUDE_DIR}"
+        )
+
+        message(
+            STATUS
+            "PHOTON_ORT_LIBRARY = ${PHOTON_ORT_LIBRARY}"
+        )
+
+        if(WIN32)
+            message(
+                STATUS
+                "PHOTON_ORT_DLL = ${PHOTON_ORT_DLL}"
+            )
+        endif()
+
+        message(
+            FATAL_ERROR
+            "ONNX Runtime was not found."
+        )
+    endif()
+
+    # --------------------------------------------------------
+    # Print detected paths
+    # --------------------------------------------------------
+
     message(
-        FATAL_ERROR
-        "ONNX Runtime was not found."
+        STATUS
+        "ONNX Runtime include: ${PHOTON_ORT_INCLUDE_DIR}"
     )
+
+    message(
+        STATUS
+        "ONNX Runtime library: ${PHOTON_ORT_LIBRARY}"
+    )
+
+    if(WIN32)
+
+        message(
+            STATUS
+            "ONNX Runtime DLL: ${PHOTON_ORT_DLL}"
+        )
+
+    endif()
+
+    # --------------------------------------------------------
+    # Linux/macOS runtime search path
+    #
+    # Allows executables/tests to find:
+    #   libonnxruntime.so
+    #
+    # without requiring LD_LIBRARY_PATH.
+    # --------------------------------------------------------
+
+    get_filename_component(
+        PHOTON_ORT_LIBRARY_DIR
+        "${PHOTON_ORT_LIBRARY}"
+        DIRECTORY
+    )
+
+    set(
+        CMAKE_BUILD_RPATH
+        "${PHOTON_ORT_LIBRARY_DIR}"
+    )
+
 endif()
-
-message(
-    STATUS
-    "ONNX Runtime include: ${PHOTON_ORT_INCLUDE_DIR}"
-)
-
-message(
-    STATUS
-    "ONNX Runtime library: ${PHOTON_ORT_LIBRARY}"
-)
-
-message(
-    STATUS
-    "ONNX Runtime DLL: ${PHOTON_ORT_DLL}"
-)
 
 # ============================================================
 # PhotonRT
@@ -164,8 +253,17 @@ target_include_directories(
 
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${PHOTON_ORT_INCLUDE_DIR}
 )
+
+if(PHOTON_ENABLE_ONNXRUNTIME)
+
+    target_include_directories(
+        photonrt
+        PRIVATE
+            ${PHOTON_ORT_INCLUDE_DIR}
+    )
+
+endif()
 
 target_compile_features(
     photonrt
@@ -194,24 +292,30 @@ else()
 
 endif()
 
-target_link_libraries(
-    photonrt
-    PRIVATE
-        ${PHOTON_ORT_LIBRARY}
-)
+if(PHOTON_ENABLE_ONNXRUNTIME)
 
-target_compile_definitions(
-    photonrt
-    PUBLIC
-        PHOTON_USE_ONNXRUNTIME=1
-)
+    target_link_libraries(
+        photonrt
+        PRIVATE
+            ${PHOTON_ORT_LIBRARY}
+    )
+
+    target_compile_definitions(
+        photonrt
+        PUBLIC
+            PHOTON_USE_ONNXRUNTIME=1
+    )
+
+endif()
 
 if(MSVC)
+
     target_compile_definitions(
         photonrt
         PRIVATE
             _CRT_SECURE_NO_WARNINGS
     )
+
 endif()
 
 # ============================================================
@@ -223,7 +327,7 @@ function(
     target
 )
 
-    if(WIN32)
+    if(WIN32 AND PHOTON_ENABLE_ONNXRUNTIME)
 
         add_custom_command(
             TARGET ${target}
@@ -391,9 +495,17 @@ if(PHOTON_BUILD_BENCHMARKS)
     photon_copy_onnxruntime(
         bench_image_caption
     )
+
 endif()
+
+# ============================================================
+# Optional precision comparison benchmark
+# ============================================================
+
 # if(PHOTON_ENABLE_ONNXRUNTIME)
-#     add_executable(compare_photon_precision
+
+#     add_executable(
+#         compare_photon_precision
 #         benchmarks/compare_photon_precision.cpp
 #     )
 
@@ -411,25 +523,34 @@ endif()
 #             ${PHOTON_ORT_INCLUDE_DIR}
 #     )
 
-#     photon_copy_onnxruntime(compare_photon_precision)
-#         add_executable(compare_photon_decoder
+#     photon_copy_onnxruntime(
+#         compare_photon_precision
+#     )
+
+#     add_executable(
+#         compare_photon_decoder
 #         benchmarks/compare_photon_decoder.cpp
 #     )
 
-#     target_link_libraries(compare_photon_decoder
-#         PRIVATE photonrt "${PHOTON_ORT_LIBRARY}"
+#     target_link_libraries(
+#         compare_photon_decoder
+#         PRIVATE
+#             photonrt
+#             "${PHOTON_ORT_LIBRARY}"
 #     )
 
-#     target_include_directories(compare_photon_decoder
+#     target_include_directories(
+#         compare_photon_decoder
 #         PRIVATE
 #             ${CMAKE_CURRENT_SOURCE_DIR}
 #             ${PHOTON_ORT_INCLUDE_DIR}
 #     )
 
-#     photon_copy_onnxruntime(compare_photon_decoder)
+#     photon_copy_onnxruntime(
+#         compare_photon_decoder
+#     )
+
 # endif()
-
-
 
 # ============================================================
 # Python bindings
@@ -466,8 +587,17 @@ if(PHOTON_BUILD_PYTHON)
         _photonrt
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}
-            ${PHOTON_ORT_INCLUDE_DIR}
     )
+
+    if(PHOTON_ENABLE_ONNXRUNTIME)
+
+        target_include_directories(
+            _photonrt
+            PRIVATE
+                ${PHOTON_ORT_INCLUDE_DIR}
+        )
+
+    endif()
 
     target_compile_features(
         _photonrt
@@ -490,7 +620,7 @@ if(PHOTON_BUILD_PYTHON)
             DESTINATION photonrt
     )
 
-    if(WIN32)
+    if(WIN32 AND PHOTON_ENABLE_ONNXRUNTIME)
 
         install(
             FILES
