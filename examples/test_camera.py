@@ -29,9 +29,9 @@ from photonrt import CameraCaptioner
 
 
 camera = CameraCaptioner.from_pretrained(
-    # camera=0,
-    # workers=1,
-    # frame_stride=10,
+    camera=0,
+    workers=1,
+    frame_stride=10,
 )
 
 try:
