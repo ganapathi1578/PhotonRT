@@ -15,7 +15,18 @@
 
 </p>
 
-PhotonRT is a native C++ image-captioning runtime with a Python interface. It uses ONNX Runtime for model execution, MobileCLIP-S1 as the visual encoder, and a compact Photon decoder for autoregressive caption generation.
+ PhotonRT is an optimized native C++ implementation of
+  <strong>Photon: Efficient Prefix-Conditioned Image Captioning with Lightweight Transformer Decoding</strong>,
+  designed for efficient real-world inference and deployment.<br>
+  It provides a high-performance C++ runtime with Python bindings,
+  ONNX Runtime execution, and support for both image captioning and
+  real-time camera-stream captioning.<br>
+  
+<p align="center">
+
+###### 📄 **Paper:** [Link](https://link.springer.com/article/10.1007/s10994-026-07072-4) | 💻 **Code:** [GitHub](https://github.com/visual-positioning/Photon-12M)
+
+</p>
 
 The Python package provides:
 
