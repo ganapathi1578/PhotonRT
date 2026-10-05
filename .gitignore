@@ -1,0 +1,15 @@
+/build/
+*.user
+*.suo
+*.pdb
+*.obj
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.photon
+*.tokenizer
+__pycache__/
+.pytest_cache/

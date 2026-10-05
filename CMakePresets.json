@@ -1,0 +1,17 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 20, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "PHOTON_BUILD_TESTS": "ON",
+        "PHOTON_BUILD_EXAMPLES": "ON",
+        "PHOTON_BUILD_BENCHMARKS": "ON"
+      }
+    }
+  ]
+}
