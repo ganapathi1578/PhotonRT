@@ -7,11 +7,30 @@ on:
 jobs:
   linux:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgomp1
+
+      - name: Install ONNX Runtime
+        run: |
+          wget -q https://github.com/microsoft/onnxruntime/releases/download/v1.30.0/onnxruntime-linux-x64-1.30.0.tgz
+          tar -xzf onnxruntime-linux-x64-1.30.0.tgz
+
       - name: Configure
-        run: cmake --preset release
+        run: |
+          cmake --preset release \
+            -DPHOTON_ONNXRUNTIME_ROOT="$GITHUB_WORKSPACE/onnxruntime-linux-x64-1.30.0"
+
       - name: Build
         run: cmake --build build -j2
+
       - name: Test
         run: ctest --test-dir build --output-on-failure
