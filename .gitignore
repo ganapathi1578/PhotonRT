@@ -10,6 +10,5 @@
 *.dll
 *.exe
 *.photon
-*.tokenizer
 __pycache__/
 .pytest_cache/
