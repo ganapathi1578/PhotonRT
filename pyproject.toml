@@ -8,7 +8,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "photonrt"
-version = "0.1.0"
+version = "0.2.0"
 description = "Native C++ image captioning runtime using ONNX Runtime"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -38,30 +38,37 @@ dev = [
     "twine"
 ]
 
-
 [tool.scikit-build]
+
+sdist.include = [
+    "CMakeLists.txt",
+    "CMakePresets.json",
+    "bindings/python_module.cpp",
+    "include/**",
+    "src/**",
+    "backends/**",
+    "vision/**",
+    "tests/**",
+    "benchmarks/**",
+]
+
 wheel.packages = [
     "python/photonrt"
 ]
 
 cmake.build-type = "Release"
 
-sdist.include = [
-    "CMakeLists.txt",
-    "CMakePresets.json",
-    "LICENSE",
-    "README.md",
-    "include/**",
-    "src/**",
-    "vision/**",
-    "bindings/**",
-    "python/**"
-]
+
+[tool.scikit-build.sdist.force-include]
+
+"bindings/python_module.cpp" = "bindings/python_module.cpp"
 
 
 [tool.scikit-build.cmake.define]
+
 PHOTON_ENABLE_ONNXRUNTIME = "ON"
 PHOTON_BUILD_PYTHON = "ON"
 PHOTON_BUILD_EXAMPLES = "OFF"
 PHOTON_BUILD_TESTS = "OFF"
 PHOTON_BUILD_BENCHMARKS = "OFF"
+PHOTON_ONNXRUNTIME_ROOT = "C:/Users/GANAPATHI/onnxruntime-win-x64-1.30.0/onnxruntime-win-x64-1.30.0"

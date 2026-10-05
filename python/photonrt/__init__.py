@@ -4,9 +4,13 @@ from pathlib import Path
 from typing import Optional, Union
 
 from . import _photonrt
+from .hub import (
+    DEFAULT_MODEL_ID,
+    DEFAULT_REVISION,
+    download_model,
+)
 
-
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 PathLike = Union[str, Path]
@@ -72,79 +76,40 @@ class Captioner:
     @classmethod
     def from_pretrained(
         cls,
-        repo_id: str,
-        revision: str = "main",
+        repo_id: str = DEFAULT_MODEL_ID,
+        revision: str = DEFAULT_REVISION,
         cache_dir: Optional[PathLike] = None,
     ) -> "Captioner":
         """
-        Download the PhotonRT model files from Hugging Face
-        and construct the native C++ runtime.
+        Download or load a cached PhotonRT model.
+
+        Parameters
+        ----------
+        repo_id:
+            Hugging Face repository containing PhotonRT model files.
+
+        revision:
+            Hugging Face branch, tag, or commit.
+
+        cache_dir:
+            Optional custom Hugging Face cache directory.
         """
 
-        try:
-            from huggingface_hub import snapshot_download
-        except ImportError as exc:
-            raise RuntimeError(
-                "huggingface_hub is required for "
-                "Captioner.from_pretrained(). "
-                "Install it with: pip install huggingface_hub"
-            ) from exc
-
-        allow_patterns = [
-            "mobileclip-s1.onnx",
-            "photon_prefill.onnx",
-            "photon.onnx",
-            "photon.tokenizer",
-            "config.json",
-        ]
-
-        kwargs = {
-            "repo_id": repo_id,
-            "revision": revision,
-            "allow_patterns": allow_patterns,
-        }
-
-        if cache_dir is not None:
-            kwargs["cache_dir"] = str(cache_dir)
-
-        model_dir = Path(
-            snapshot_download(**kwargs)
+        paths = download_model(
+            repo_id=repo_id,
+            revision=revision,
+            cache_dir=cache_dir,
         )
-
-        required = [
-            "mobileclip-s1.onnx",
-            "photon_prefill.onnx",
-            "photon.onnx",
-            "photon.tokenizer",
-        ]
-
-        paths = {}
-
-        for filename in required:
-            path = model_dir / filename
-
-            if not path.exists():
-                raise RuntimeError(
-                    f"Missing model file in HF repository: "
-                    f"{filename}"
-                )
-
-            paths[filename] = path
 
         return cls(
-            mobileclip_model=paths[
-                "mobileclip-s1.onnx"
-            ],
-            photon_prefill_model=paths[
-                "photon_prefill.onnx"
-            ],
-            photon_decode_model=paths[
-                "photon.onnx"
-            ],
-            tokenizer=paths[
-                "photon.tokenizer"
-            ],
+            mobileclip_model=paths["mobileclip"],
+            photon_prefill_model=paths["prefill"],
+            photon_decode_model=paths["decode"],
+            tokenizer=paths["tokenizer"],
         )
+
+
+from .stream import CameraCaptioner, CaptionResult
 
 
 CaptionerNative = _photonrt.Captioner
@@ -155,5 +120,9 @@ __all__ = [
     "Captioner",
     "CaptionerNative",
     "CaptionOptions",
+    "CameraCaptioner",
+    "CaptionResult",
+    "DEFAULT_MODEL_ID",
+    "DEFAULT_REVISION",
     "__version__",
-]
+]   
