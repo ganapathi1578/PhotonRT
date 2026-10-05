@@ -38,18 +38,33 @@ dev = [
     "twine"
 ]
 
+
 [tool.scikit-build]
 
 sdist.include = [
     "CMakeLists.txt",
     "CMakePresets.json",
-    "bindings/python_module.cpp",
+    "pyproject.toml",
+    "README.md",
+    "LICENSE",
+    "bindings/**",
     "include/**",
     "src/**",
     "backends/**",
     "vision/**",
-    "tests/**",
-    "benchmarks/**",
+    "python/**",
+]
+sdist.exclude = [
+    "**/*.onnx",
+    "**/*.mclip",
+    "**/*.f32",
+    "**/*.bin",
+    "**/*.pt",
+    "**/*.pth",
+    "**/*.pyd",
+    "**/*.dll",
+    "build/**",
+    "dist/**",
 ]
 
 wheel.packages = [
@@ -71,4 +86,4 @@ PHOTON_BUILD_PYTHON = "ON"
 PHOTON_BUILD_EXAMPLES = "OFF"
 PHOTON_BUILD_TESTS = "OFF"
 PHOTON_BUILD_BENCHMARKS = "OFF"
-PHOTON_ONNXRUNTIME_ROOT = "C:/Users/GANAPATHI/onnxruntime-win-x64-1.30.0/onnxruntime-win-x64-1.30.0"
+PHOTON_ONNXRUNTIME_ROOT = { env = "PHOTON_ONNXRUNTIME_ROOT" }
