@@ -1,79 +1,109 @@
-# MobileCLIP-S1 native CPU path
+# MobileCLIP in PhotonRT
 
-Photon uses the MobileCLIP-S1 image encoder to turn an image into a 512-D vector before the Photon decoder. The native encoder in this repository is a C++ CPU implementation of the **reparameterized** MobileCLIP-S1 image path.
+## Role
 
-## What is native
+MobileCLIP-S1 is PhotonRT's visual encoder.
+
+Its output is the visual representation consumed by the Photon decoder pipeline.
 
 ```text
-C++ / PhotonRT
-    image tensor (3x256x256, float32, CHW)
-       -> MobileCLIP-S1
-       -> 512-D embedding
-       -> L2 normalization (optional)
+image
+  |
+  v
+MobileCLIP-S1
+  |
+  v
+512-D embedding
+  |
+  v
+L2 normalization
+  |
+  v
+Photon prefix projection
 ```
 
-The implementation contains the inference-time FastViT/MCI-1 graph: MobileOne/ReparamLargeKernel fused convolutions, RepMixer stages, BatchNorm folding, the final MHSA stage, SE blocks, CPE, global average pooling, and the 512-D image projection.
+## Runtime artifact
 
-The official MCI-1 configuration is 4 / 12 / 20 / 4 blocks with channel sizes 64 / 128 / 256 / 512, and the MobileCLIP-S1 config exposes a 512-D image embedding and 256x256 input. See the upstream Apple sources for the exact model definition. 
+The ONNX runtime file is:
 
-## Export
-
-The exporter uses the official Python implementation to load `mobileclip_s1.pt` and fold reparameterizable branches before saving `mobileclip-s1.f32.mclip`.
-
-```bash
-python tools/convert_mobileclip.py \
-  --checkpoint "C:/path/to/mobileclip_s1.pt" \
-  --output mobileclip-s1.f32.mclip
+```text
+mobileclip-s1.onnx
 ```
 
-Do not commit or redistribute Apple's pretrained weights unless their applicable model terms permit it.
+## Python usage
 
-## Exact-reference preprocessing
+Normal users do not need to invoke MobileCLIP directly.
 
-For parity, use the upstream MobileCLIP preprocessing path first:
+```python
+from photonrt import Captioner
 
-```bash
-python tools/preprocess_mobileclip.py \
-  --image "C:/path/to/image.jpg" \
-  --output image_chw.f32
+model = Captioner.from_pretrained()
+
+print(model.caption("image.jpg"))
 ```
 
-The released Python helper currently performs resize, center crop and `ToTensor()` for MobileCLIP v1; it does not add an ImageNet normalization step.
+## Native path
 
-## Native embedding
+The C++ runtime loads MobileCLIP through ONNX Runtime.
 
-```bash
-./build/Release/mobileclip-embedding.exe \
-  mobileclip-s1.f32.mclip \
-  image_chw.f32
+The image-captioning path performs:
+
+1. image loading
+2. preprocessing
+3. MobileCLIP inference
+4. embedding normalization
+5. Photon generation
+6. token decoding
+
+## Raw frame path
+
+For streaming applications, the native binding supports:
+
+```python
+runtime.caption_rgb(frame, options)
+runtime.caption_bgr(frame, options)
 ```
 
-This writes `mobileclip_embedding.f32`.
+The expected frame format is:
 
-## Parity test
-
-```bash
-python tools/compare_mobileclip.py \
-  --checkpoint "C:/path/to/mobileclip_s1.pt" \
-  --image-tensor image_chw.f32 \
-  --native-embedding mobileclip_embedding.f32
+```text
+shape = (height, width, 3)
+dtype = uint8
 ```
 
-Inspect:
+## BGR frames
 
-- max absolute error
-- mean absolute error
-- cosine similarity
-- both vector norms
+OpenCV normally returns BGR images.
 
-## End-to-end native C++ path
+Use:
 
-```bash
-./build/Release/image-caption.exe \
-  mobileclip-s1.f32.mclip \
-  photon.f32.photon \
-  photon.tokenizer \
-  image_chw.f32
+```python
+runtime.caption_bgr(frame, options)
 ```
 
-The image decoder is deliberately not bundled yet. The runtime accepts a preprocessed tensor so that MobileCLIP numerical parity can be established before introducing JPEG/PNG decoding.
+so the native path performs the required channel conversion.
+
+## RGB frames
+
+For RGB data:
+
+```python
+runtime.caption_rgb(frame, options)
+```
+
+## Performance
+
+MobileCLIP is part of the end-to-end inference time.
+
+Camera applications should benchmark:
+
+```text
+capture
+preprocessing
+MobileCLIP
+Photon prefill
+Photon decode
+token decode
+```
+
+rather than assuming the decoder alone determines latency.

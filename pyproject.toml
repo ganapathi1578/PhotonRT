@@ -38,18 +38,33 @@ dev = [
     "twine"
 ]
 
+
 [tool.scikit-build]
 
 sdist.include = [
     "CMakeLists.txt",
     "CMakePresets.json",
-    "bindings/python_module.cpp",
+    "pyproject.toml",
+    "README.md",
+    "LICENSE",
+    "bindings/**",
     "include/**",
     "src/**",
     "backends/**",
     "vision/**",
-    "tests/**",
-    "benchmarks/**",
+    "python/**",
+]
+sdist.exclude = [
+    "**/*.onnx",
+    "**/*.mclip",
+    "**/*.f32",
+    "**/*.bin",
+    "**/*.pt",
+    "**/*.pth",
+    "**/*.pyd",
+    "**/*.dll",
+    "build/**",
+    "dist/**",
 ]
 
 wheel.packages = [

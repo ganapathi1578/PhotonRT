@@ -1,40 +1,105 @@
-# PhotonRT roadmap
+# PhotonRT Roadmap
 
-## v0.2 — native vision validation
+This roadmap is intentionally lightweight and can be updated as runtime capabilities mature.
 
-1. Validate `mobileclip_s1.pt -> mobileclip-s1.f32.mclip`.
-2. Compare native 512-D embeddings with Apple's PyTorch reference.
-3. Run full native `MobileCLIP -> Photon -> caption` path.
+## 0.2.x
 
-## v0.3 — CPU optimization
+- stabilize Python package APIs
+- document model artifacts
+- improve camera-stream configuration and examples
+- expand release/test coverage
+- improve error reporting
+- clean source-distribution contents
 
-1. Multithreaded convolution.
-2. AVX2/AVX-512 kernels on x86.
-3. ARM NEON kernels.
-4. GEMM packing for pointwise layers.
-5. Operator fusion.
+## Native runtime direction
 
-## v0.4 — model formats and compression
+Move more orchestration into the C++ core:
 
-1. mmap-capable model loading.
-2. F16 weights.
-3. Q8.
-4. Q4.
-5. Quality regression suite.
+```text
+Current
+Python capture
+    +
+Python queues/workers
+    +
+C++ inference
 
-## v0.5 — GPU
+Target
+C++ capture
+    +
+C++ scheduling
+    +
+C++ queues
+    +
+C++ timestamps
+    +
+C++ model/cache management
+    +
+C++ inference
+```
 
-1. CUDA backend.
-2. CUDA convolution/GEMM.
-3. CUDA attention.
-4. GPU/CPU backend parity.
+The Python layer can then remain a thin interface over a stable native API.
 
-## v1.0 — library release
+## Packaging
 
-1. Stable C API.
-2. C++ API.
-3. Python bindings.
-4. Native JPEG/PNG decoding.
-5. Installable packages.
-6. Reproducible benchmarks.
-7. Model cards and license notices.
+Planned improvements:
+
+- automated wheel builds
+- multiple supported CPython versions
+- broader operating-system support
+- CI validation on clean environments
+- automated PyPI releases
+- reproducible model revisions
+
+## Streaming
+
+Potential improvements:
+
+- native capture backends
+- better source abstraction
+- configurable frame sampling policies
+- explicit backpressure modes
+- zero-copy or reduced-copy frame paths
+- stream lifecycle/error APIs
+- telemetry and profiling
+
+## Performance
+
+Potential areas:
+
+- preprocessing optimization
+- ONNX Runtime execution tuning
+- memory reuse
+- decoder optimization
+- backend-specific acceleration
+- worker scheduling
+- reduced host/device copies where supported
+
+## Model formats
+
+Potential future runtime formats:
+
+```text
+FP32
+FP16
+INT8
+```
+
+Any additional format should preserve a clearly documented model contract and explicit compatibility requirements.
+
+## API stability
+
+The public API should prioritize a small stable surface:
+
+```python
+Captioner
+Captioner.from_pretrained
+Captioner.caption
+
+CaptionerNative
+CaptionOptions
+
+CameraCaptioner
+CaptionResult
+```
+
+New features should avoid unnecessary breaking changes.
